@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bingo卡生成器</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'teal-custom': '#0d9488',
+                        'emerald-custom': '#10b981',
+                        'cyan-custom': '#06b6d4',
+                    },
+                    fontFamily: {
+                        'sans': ['Noto Sans SC', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Noto Sans SC', sans-serif;
+        }
+        
+        .bingo-card-container {
+            width: 9.5cm;
+            height: 9.5cm;
+            box-sizing: border-box;
+        }
+        
+        .bingo-card {
+            width: 100%;
+            height: 100%;
+            border: 1px solid #999999;
+            display: grid;
+            box-sizing: border-box;
+        }
+        
+        .bingo-cell {
+            border: 0.5px solid #999999;
+            padding: 3px;
+            color: black;
+            display: flex;
+            flex-direction: column;
+            box-sizing: border-box;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .bingo-cell.center {
+            background-color: #d9d9d9;
+            align-items: center;
+            justify-content: flex-start;
+        }
+        
+        .bingo-cell:not(.center) {
+            background-color: white;
+            align-items: flex-start;
+        }
+        
+        .bingo-cell-text {
+            word-break: break-all;
+            line-height: 1.2;
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+        
+        .bingo-cell-signature-area {
+            flex-grow: 1;
+            border-top: 0.5px dashed #cccccc;
+            margin-top: 2px;
+            min-height: 30%;
+        }
+        
+        .bingo-cell.center .bingo-cell-text {
+            font-size: 10pt;
+        }
+        
+        textarea::placeholder {
+            color: #d9d9d9;
+        }
+        
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.75);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            box-shadow: 0 8px 32px rgba(13, 148, 136, 0.1);
+        }
+        
+        .radio-custom:checked + span {
+            color: #0d9488;
+            font-weight: 600;
+        }
+        
+        .radio-custom:checked {
+            accent-color: #0d9488;
+        }
+        
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+            .bingo-card-container, .bingo-card-container * {
+                visibility: visible;
+            }
+            .bingo-card-container {
+                position: absolute;
+                left: 0;
+                top: 0;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-teal-50 via-emerald-50 to-cyan-50 min-h-screen p-4 md:p-8">
+    <div class="max-w-7xl mx-auto">
+        <!-- Main Content -->
+        <div class="flex flex-col lg:flex-row gap-6 lg:gap-10 justify-center items-start">
+            <!-- Left: Bingo Card -->
+            <div id="leftPanel" class="glass-panel rounded-3xl p-6 md:p-8 shadow-xl flex-shrink-0 mx-auto lg:mx-0 flex flex-col">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-lg font-semibold text-teal-700">
+                        Bingo卡
+                    </h2>
+                </div>
+                <div class="bingo-card-container mx-auto">
+                    <div id="bingoCard" class="bingo-card">
+                        <!-- Grid will be generated here -->
+                    </div>
+                </div>
+                <!-- Save Image Button -->
+                <div class="mt-6 flex justify-center">
+                    <button id="saveImageBtn" 
+                        class="px-6 py-2.5 bg-gradient-to-r from-teal-500 to-emerald-500 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl hover:from-teal-600 hover:to-emerald-600 transition-all duration-200">
+                        保存图片
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Right: Controls -->
+            <div id="rightPanel" class="glass-panel rounded-3xl p-6 md:p-8 shadow-xl w-full lg:w-96 flex-shrink-0 flex flex-col overflow-hidden">
+                <h2 class="text-lg font-semibold text-teal-700 mb-4">
+                    人际描述词
+                </h2>
+                
+                <!-- Radio: 行列 -->
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        行列
+                    </label>
+                    <div class="flex gap-6 bg-teal-50 rounded-xl p-2">
+                        <label class="inline-flex items-center cursor-pointer flex-1 justify-center">
+                            <input type="radio" name="gridSize" value="3" class="radio-custom">
+                            <span class="ml-2 text-sm">3</span>
+                        </label>
+                        <label class="inline-flex items-center cursor-pointer flex-1 justify-center">
+                            <input type="radio" name="gridSize" value="4" class="radio-custom">
+                            <span class="ml-2 text-sm">4</span>
+                        </label>
+                        <label class="inline-flex items-center cursor-pointer flex-1 justify-center">
+                            <input type="radio" name="gridSize" value="5" class="radio-custom" checked>
+                            <span class="ml-2 text-sm">5</span>
+                        </label>
+                    </div>
+                </div>
+                
+                <!-- 通用词 -->
+                <div class="mb-4">
+                    <div class="flex items-center justify-between mb-2">
+                        <label class="block text-sm font-medium text-gray-700">
+                            通用词
+                        </label>
+                        <div class="flex items-center gap-1 bg-teal-50 rounded-lg px-2 py-1">
+                            <input type="number" id="percentage" min="1" max="40" value="20" 
+                                class="w-12 bg-transparent text-center text-sm focus:outline-none">
+                            <span class="text-sm text-gray-500">%</span>
+                        </div>
+                    </div>
+                    <textarea id="generalWords" rows="4" 
+                        placeholder="请输入通用描述词" 
+                        class="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-400 focus:border-transparent resize-none bg-white/60 transition-all"></textarea>
+                </div>
+                
+                <!-- 特定词 -->
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        特定词
+                    </label>
+                    <textarea id="specificWords" rows="4" 
+                        placeholder="请输入特定描述词" 
+                        class="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-400 focus:border-transparent resize-none bg-white/60 transition-all"></textarea>
+                </div>
+                
+                <!-- Generate Button -->
+                <div class="mt-auto">
+                    <button id="generateBtn" 
+                        class="w-full py-3 bg-gradient-to-r from-teal-500 to-emerald-500 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl hover:from-teal-600 hover:to-emerald-600 transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none">
+                        生成bingo卡
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // DOM Elements
+        const bingoCard = document.getElementById('bingoCard');
+        const generalWordsTextarea = document.getElementById('generalWords');
+        const specificWordsTextarea = document.getElementById('specificWords');
+        const percentageInput = document.getElementById('percentage');
+        const generateBtn = document.getElementById('generateBtn');
+        const saveImageBtn = document.getElementById('saveImageBtn');
+        const radioButtons = document.querySelectorAll('input[name="gridSize"]');
+        const leftPanel = document.getElementById('leftPanel');
+        const rightPanel = document.getElementById('rightPanel');
+        
+        // Current free space position (will be set randomly each generation)
+        let currentFreeSpacePos = { row: 2, col: 2 }; // Default to center
+        
+        // Match right panel height to left panel
+        function matchPanelHeights() {
+            const leftHeight = leftPanel.offsetHeight;
+            rightPanel.style.height = leftHeight + 'px';
+        }
+        
+        // Generate a random position for the free space
+        function getRandomFreeSpacePos(n) {
+            return {
+                row: Math.floor(Math.random() * n),
+                col: Math.floor(Math.random() * n)
+            };
+        }
+        
+        // Generate grid
+        function generateGrid(n, freeSpacePos) {
+            bingoCard.innerHTML = '';
+            bingoCard.style.gridTemplateColumns = `repeat(${n}, 1fr)`;
+            bingoCard.style.gridTemplateRows = `repeat(${n}, 1fr)`;
+            
+            for (let row = 0; row < n; row++) {
+                for (let col = 0; col < n; col++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'bingo-cell';
+                    cell.dataset.row = row;
+                    cell.dataset.col = col;
+                    
+                    // Free space cell
+                    if (row === freeSpacePos.row && col === freeSpacePos.col) {
+                        cell.classList.add('center');
+                        cell.innerHTML = '<span class="bingo-cell-text">任意格</span>';
+                    } else {
+                        // Add signature area for non-center cells
+                        cell.innerHTML = '<span class="bingo-cell-text"></span><div class="bingo-cell-signature-area"></div>';
+                    }
+                    
+                    bingoCard.appendChild(cell);
+                }
+            }
+        }
+        
+        // Adjust font size to fit text in cell
+        function adjustFontSize(cellElement) {
+            const textElement = cellElement.querySelector('.bingo-cell-text');
+            if (!textElement || !textElement.textContent) return;
+            
+            const text = textElement.textContent;
+            const cellWidth = cellElement.clientWidth - 6; // padding
+            const cellHeight = cellElement.clientHeight;
+            const signatureAreaHeight = cellHeight * 0.35; // Reserve 35% for signature
+            const availableHeight = cellHeight - signatureAreaHeight - 6; // padding
+            
+            // Start with max font size of 10pt and decrease until it fits
+            let fontSize = 10; // Max font size is 10pt
+            const minFontSize = 5; // Minimum font size
+            
+            while (fontSize >= minFontSize) {
+                textElement.style.fontSize = fontSize + 'pt';
+                
+                // Check if text overflows
+                if (textElement.scrollHeight <= availableHeight && 
+                    textElement.scrollWidth <= cellWidth) {
+                    break;
+                }
+                
+                fontSize -= 0.5;
+            }
+            
+            // If still overflowing at min size, keep min size
+            if (fontSize < minFontSize) {
+                textElement.style.fontSize = minFontSize + 'pt';
+            }
+        }
+        
+        // Adjust all cell font sizes
+        function adjustAllFontSizes() {
+            const cells = bingoCard.querySelectorAll('.bingo-cell:not(.center)');
+            cells.forEach(cell => adjustFontSize(cell));
+        }
+        
+        // Check if button should be enabled
+        function updateButtonState() {
+            const hasGeneral = generalWordsTextarea.value.trim().length > 0;
+            const hasSpecific = specificWordsTextarea.value.trim().length > 0;
+            generateBtn.disabled = !hasGeneral && !hasSpecific;
+        }
+        
+        // Shuffle array (Fisher-Yates)
+        function shuffleArray(array) {
+            const arr = [...array];
+            for (let i = arr.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [arr[i], arr[j]] = [arr[j], arr[i]];
+            }
+            return arr;
+        }
+        
+        // Get random items from array without duplicates within a single generation
+        function getRandomItems(array, count) {
+            // Remove duplicates from the source array first
+            const uniqueArray = [...new Set(array)];
+            const shuffled = shuffleArray(uniqueArray);
+            return shuffled.slice(0, Math.min(count, shuffled.length));
+        }
+        
+        // Get all possible lines (rows, columns, diagonals)
+        function getAllLines(n) {
+            const lines = [];
+            
+            // Rows
+            for (let row = 0; row < n; row++) {
+                const line = [];
+                for (let col = 0; col < n; col++) {
+                    line.push({ row, col });
+                }
+                lines.push({ type: 'row', index: row, cells: line });
+            }
+            
+            // Columns
+            for (let col = 0; col < n; col++) {
+                const line = [];
+                for (let row = 0; row < n; row++) {
+                    line.push({ row, col });
+                }
+                lines.push({ type: 'col', index: col, cells: line });
+            }
+            
+            // Diagonals
+            const diag1 = [];
+            const diag2 = [];
+            for (let i = 0; i < n; i++) {
+                diag1.push({ row: i, col: i });
+                diag2.push({ row: i, col: n - 1 - i });
+            }
+            lines.push({ type: 'diag', index: 0, cells: diag1 });
+            lines.push({ type: 'diag', index: 1, cells: diag2 });
+            
+            return lines;
+        }
+        
+        // Generate bingo card
+        function generateBingoCard() {
+            const n = parseInt(document.querySelector('input[name="gridSize"]:checked').value);
+            const i = parseInt(percentageInput.value) || 20;
+            
+            const totalCells = n * n - 1; // minus free space cell
+            
+            // Generate random free space position
+            currentFreeSpacePos = getRandomFreeSpacePos(n);
+            
+            // Get words
+            const generalWords = generalWordsTextarea.value
+                .split('\n')
+                .map(w => w.trim())
+                .filter(w => w.length > 0);
+            
+            const specificWords = specificWordsTextarea.value
+                .split('\n')
+                .map(w => w.trim())
+                .filter(w => w.length > 0);
+            
+            const hasGeneral = generalWords.length > 0;
+            const hasSpecific = specificWords.length > 0;
+            
+            // Calculate number of general and specific words
+            let x, y; // x = general words count, y = specific words count
+            
+            if (hasGeneral && !hasSpecific) {
+                // Only general words available
+                x = totalCells;
+                y = 0;
+            } else if (!hasGeneral && hasSpecific) {
+                // Only specific words available
+                x = 0;
+                y = totalCells;
+            } else if (hasGeneral && hasSpecific) {
+                // Both pools available, use percentage logic
+                x = Math.round(totalCells * i / 100); // general words count
+                y = totalCells - x; // specific words count
+            }
+            
+            // Select words from pools
+            const selectedGeneral = hasGeneral ? getRandomItems(generalWords, x) : [];
+            const selectedSpecific = hasSpecific ? getRandomItems(specificWords, y) : [];
+            
+            // Generate grid with random free space position
+            generateGrid(n, currentFreeSpacePos);
+            
+            // Create a 2D array to represent the grid
+            const grid = [];
+            for (let row = 0; row < n; row++) {
+                grid.push([]);
+                for (let col = 0; col < n; col++) {
+                    grid[row].push(null);
+                }
+            }
+            
+            // Mark free space cell
+            grid[currentFreeSpacePos.row][currentFreeSpacePos.col] = { 
+                word: '任意格', 
+                isSpecific: false, 
+                isFreeSpace: true 
+            };
+            
+            // Track used specific words
+            const usedSpecificWords = new Set();
+            
+            // If we have specific words, ensure at least 2 complete lines are filled with specific words
+            // (lines can include the free space cell)
+            if (hasSpecific && selectedSpecific.length >= 2) {
+                // Get all possible lines
+                const allLines = getAllLines(n);
+                
+                // Shuffle lines to randomize selection
+                const shuffledLines = shuffleArray(allLines);
+                
+                // Select 2 lines
+                const selectedLines = [];
+                let specificWordsUsed = 0;
+                
+                for (const line of shuffledLines) {
+                    if (selectedLines.length >= 2) break;
+                    
+                    // Count how many specific words we need for this line (excluding free space)
+                    const cellsToFill = line.cells.filter(cell => 
+                        !(cell.row === currentFreeSpacePos.row && cell.col === currentFreeSpacePos.col)
+                    );
+                    
+                    // Check if we have enough specific words left
+                    if (specificWordsUsed + cellsToFill.length <= selectedSpecific.length) {
+                        selectedLines.push(line);
+                        specificWordsUsed += cellsToFill.length;
+                    }
+                }
+                
+                // Fill the selected lines with specific words
+                let specificIndex = 0;
+                for (const line of selectedLines) {
+                    for (const cell of line.cells) {
+                        // Skip free space cell
+                        if (cell.row === currentFreeSpacePos.row && cell.col === currentFreeSpacePos.col) {
+                            continue;
+                        }
+                        
+                        // Only fill if not already filled
+                        if (grid[cell.row][cell.col] === null) {
+                            const word = selectedSpecific[specificIndex];
+                            grid[cell.row][cell.col] = { word: word, isSpecific: true };
+                            usedSpecificWords.add(word);
+                            specificIndex++;
+                        }
+                    }
+                }
+            }
+            
+            // Collect remaining words
+            const remainingGeneral = [...selectedGeneral];
+            const remainingSpecific = selectedSpecific.filter(w => !usedSpecificWords.has(w));
+            
+            // Combine and shuffle remaining words
+            const remainingWords = shuffleArray([...remainingGeneral, ...remainingSpecific]);
+            
+            // Collect all empty cells (excluding free space)
+            const emptyCells = [];
+            for (let row = 0; row < n; row++) {
+                for (let col = 0; col < n; col++) {
+                    if (grid[row][col] === null) {
+                        emptyCells.push({ row, col });
+                    }
+                }
+            }
+            
+            // Shuffle empty cells for random placement
+            const shuffledEmptyCells = shuffleArray(emptyCells);
+            
+            // Fill empty cells with remaining words
+            for (let j = 0; j < shuffledEmptyCells.length && j < remainingWords.length; j++) {
+                const cell = shuffledEmptyCells[j];
+                grid[cell.row][cell.col] = { word: remainingWords[j], isSpecific: false };
+            }
+            
+            // Apply grid to DOM
+            for (let row = 0; row < n; row++) {
+                for (let col = 0; col < n; col++) {
+                    const cellElement = bingoCard.querySelector(`.bingo-cell[data-row="${row}"][data-col="${col}"]`);
+                    if (!cellElement) continue;
+                    
+                    const cellData = grid[row][col];
+                    if (cellData && cellData.word) {
+                        const textElement = cellElement.querySelector('.bingo-cell-text');
+                        if (textElement) {
+                            textElement.textContent = cellData.word;
+                        }
+                    }
+                }
+            }
+            
+            // Adjust font sizes after filling
+            setTimeout(adjustAllFontSizes, 50);
+        }
+        
+        // Save bingo card as PNG image
+        function saveBingoAsImage() {
+            const n = parseInt(document.querySelector('input[name="gridSize"]:checked').value);
+            
+            // Create canvas (10cm x 10cm at 300 DPI for high quality)
+            const canvasSize = 1181; // pixels for 10cm at 300 DPI (10 * 300 / 2.54 ≈ 1181)
+            const cardSize = 1122; // pixels for 9.5cm at 300 DPI (9.5 * 300 / 2.54 ≈ 1122)
+            const margin = Math.round((canvasSize - cardSize) / 2); // ≈ 29.5 pixels for 0.25cm margin
+            
+            const canvas = document.createElement('canvas');
+            canvas.width = canvasSize;
+            canvas.height = canvasSize;
+            const ctx = canvas.getContext('2d');
+            
+            // Fill background (white)
+            ctx.fillStyle = '#FFFFFF';
+            ctx.fillRect(0, 0, canvasSize, canvasSize);
+            
+            // Draw bingo card border
+            ctx.strokeStyle = '#999999';
+            ctx.lineWidth = 3;
+            ctx.strokeRect(margin, margin, cardSize, cardSize);
+            
+            // Calculate cell size
+            const cellSize = cardSize / n;
+            const padding = Math.round(cellSize * 0.08);
+            const signatureAreaHeight = cellSize * 0.35; // 35% for signature
+            
+            // Max font size in pixels (10pt at 300 DPI)
+            // 1pt = 1/72 inch, at 300 DPI: 10pt = 10 * (300/72) ≈ 41.67px
+            const maxFontSizePx = Math.round(10 * 300 / 72); // ≈ 42px
+            
+            // Get all cells from the DOM
+            const cells = bingoCard.querySelectorAll('.bingo-cell');
+            
+            cells.forEach((cell) => {
+                const row = parseInt(cell.dataset.row);
+                const col = parseInt(cell.dataset.col);
+                
+                const x = margin + col * cellSize;
+                const y = margin + row * cellSize;
+                
+                // Draw cell border
+                ctx.strokeStyle = '#999999';
+                ctx.lineWidth = 1.5;
+                ctx.strokeRect(x, y, cellSize, cellSize);
+                
+                // Check if free space cell
+                const isFreeSpace = row === currentFreeSpacePos.row && col === currentFreeSpacePos.col;
+                
+                if (isFreeSpace) {
+                    // Fill free space cell background
+                    ctx.fillStyle = '#d9d9d9';
+                    ctx.fillRect(x, y, cellSize, cellSize);
+                    
+                    // Draw free space text
+                    ctx.fillStyle = '#000000';
+                    ctx.textAlign = 'center';
+                    const freeSpaceFontSize = Math.round(cellSize * 0.15);
+                    ctx.font = `${freeSpaceFontSize}px 'Noto Sans SC', sans-serif`;
+                    ctx.textBaseline = 'top';
+                    ctx.fillText('任意格', x + cellSize / 2, y + padding);
+                } else {
+                    // Fill cell background
+                    ctx.fillStyle = '#FFFFFF';
+                    ctx.fillRect(x, y, cellSize, cellSize);
+                    
+                    // Get cell text
+                    const textElement = cell.querySelector('.bingo-cell-text');
+                    if (textElement && textElement.textContent) {
+                        const text = textElement.textContent;
+                        
+                        // Calculate dynamic font size for canvas
+                        const maxWidth = cellSize - padding * 2;
+                        const maxHeight = cellSize - signatureAreaHeight - padding;
+                        
+                        // Start with font size capped at maxFontSizePx (equivalent to 10pt)
+                        let fontSize = Math.min(Math.round(cellSize * 0.15), maxFontSizePx);
+                        const minFontSize = Math.round(cellSize * 0.06);
+                        
+                        ctx.font = `${fontSize}px 'Noto Sans SC', sans-serif`;
+                        ctx.fillStyle = '#000000';
+                        ctx.textAlign = 'left';
+                        ctx.textBaseline = 'top';
+                        
+                        // Function to check if text fits at current font size
+                        function textFits(size) {
+                            ctx.font = `${size}px 'Noto Sans SC', sans-serif`;
+                            
+                            // Simulate text wrapping
+                            const words = text.split('');
+                            let line = '';
+                            let lineCount = 0;
+                            const lineHeight = size * 1.2;
+                            let totalHeight = 0;
+                            
+                            for (let i = 0; i < words.length; i++) {
+                                const testLine = line + words[i];
+                                const metrics = ctx.measureText(testLine);
+                                
+                                if (metrics.width > maxWidth && i > 0) {
+                                    line = words[i];
+                                    totalHeight += lineHeight;
+                                    lineCount++;
+                                    
+                                    if (totalHeight + lineHeight > maxHeight) {
+                                        return false;
+                                    }
+                                } else {
+                                    line = testLine;
+                                }
+                            }
+                            
+                            return (totalHeight + lineHeight) <= maxHeight;
+                        }
+                        
+                        // Find the largest font size that fits (capped at maxFontSizePx)
+                        while (fontSize > minFontSize && !textFits(fontSize)) {
+                            fontSize -= 1;
+                        }
+                        
+                        // Draw text with the calculated font size
+                        ctx.font = `${fontSize}px 'Noto Sans SC', sans-serif`;
+                        
+                        // Word wrap and draw text
+                        const words = text.split('');
+                        let line = '';
+                        let lineY = y + padding;
+                        const lineHeight = fontSize * 1.2;
+                        
+                        for (let i = 0; i < words.length; i++) {
+                            const testLine = line + words[i];
+                            const metrics = ctx.measureText(testLine);
+                            
+                            if (metrics.width > maxWidth && i > 0) {
+                                ctx.fillText(line, x + padding, lineY);
+                                line = words[i];
+                                lineY += lineHeight;
+                            } else {
+                                line = testLine;
+                            }
+                        }
+                        
+                        // Draw the last line
+                        ctx.fillText(line, x + padding, lineY);
+                    }
+                    
+                    // Draw signature area divider (dashed line)
+                    ctx.strokeStyle = '#cccccc';
+                    ctx.lineWidth = 0.5;
+                    ctx.setLineDash([3, 3]);
+                    ctx.beginPath();
+                    ctx.moveTo(x + padding, y + cellSize - signatureAreaHeight);
+                    ctx.lineTo(x + cellSize - padding, y + cellSize - signatureAreaHeight);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                }
+            });
+            
+            // Convert canvas to PNG and download
+            canvas.toBlob(function(blob) {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'bingo_card.png';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }, 'image/png');
+        }
+        
+        // Event listeners
+        radioButtons.forEach(radio => {
+            radio.addEventListener('change', (e) => {
+                const n = parseInt(e.target.value);
+                // Generate a random free space position for the initial grid
+                currentFreeSpacePos = getRandomFreeSpacePos(n);
+                generateGrid(n, currentFreeSpacePos);
+            });
+        });
+        
+        generalWordsTextarea.addEventListener('input', updateButtonState);
+        specificWordsTextarea.addEventListener('input', updateButtonState);
+        
+        percentageInput.addEventListener('input', () => {
+            let val = parseInt(percentageInput.value);
+            if (isNaN(val) || val < 1) val = 1;
+            if (val > 40) val = 40;
+            percentageInput.value = val;
+        });
+        
+        percentageInput.addEventListener('blur', () => {
+            let val = parseInt(percentageInput.value);
+            if (isNaN(val) || val < 1) val = 1;
+            if (val > 40) val = 40;
+            percentageInput.value = val;
+        });
+        
+        generateBtn.addEventListener('click', generateBingoCard);
+        saveImageBtn.addEventListener('click', saveBingoAsImage);
+        
+        // Initialize
+        currentFreeSpacePos = getRandomFreeSpacePos(5);
+        generateGrid(5, currentFreeSpacePos);
+        updateButtonState();
+        
+        // Match panel heights after initialization
+        setTimeout(matchPanelHeights, 100);
+        
+        // Adjust font sizes on window resize
+        window.addEventListener('resize', () => {
+            if (bingoCard.children.length > 0) {
+                adjustAllFontSizes();
+            }
+            matchPanelHeights();
+        });
+    </script>
+</body>
+</html>
